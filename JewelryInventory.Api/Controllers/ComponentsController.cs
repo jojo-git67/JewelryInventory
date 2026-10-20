@@ -43,4 +43,16 @@ public class ComponentsController : ControllerBase
 
         return Ok(component);
     }
+
+    [HttpPost]
+    public async Task<ActionResult<ComponentDto>> CreateComponent([FromBody] CreateComponentRequest request)
+    {
+        var component = await _componentService.CreateComponentAsync(request);
+
+        return CreatedAtAction(
+            nameof(GetComponentById),
+            new { id = component.Id },
+            component
+        );
+    }
 }
