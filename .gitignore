@@ -39,3 +39,14 @@ appsettings.Local.json
 # Test results
 TestResults/
 coverage/
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# .NET / Visual Studio
+*.userosscache
+*.sln.docstates
