@@ -1,4 +1,5 @@
 using JewelryInventory.Api.Data;
+using JewelryInventory.Api.Services;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -8,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddScoped<ComponentService>();
 
 builder.Services.AddDbContext<InventoryDbContext>(options =>
     options.UseSqlite(
