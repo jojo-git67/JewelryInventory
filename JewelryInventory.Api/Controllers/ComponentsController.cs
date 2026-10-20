@@ -22,4 +22,25 @@ public class ComponentsController : ControllerBase
 
         return Ok(components);
     }
+
+    [HttpGet("all")]
+    public async Task<ActionResult<List<ComponentDto>>> GetAllComponents()
+    {
+        var components = await _componentService.GetAllComponentsAsync();
+
+        return Ok(components);
+    }
+
+    [HttpGet("{id:int}")]
+    public async Task<ActionResult<ComponentDto>> GetComponentById(int id)
+    {
+        var component = await _componentService.GetComponentById(id);
+
+        if (component is null)
+        {
+            return NotFound($"Component with ID {id} does not exist");
+        }
+
+        return Ok(component);
+    }
 }
