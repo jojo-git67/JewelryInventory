@@ -16,6 +16,8 @@ builder.Services.AddDbContext<InventoryDbContext>(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline for DEVELOPMENT only
+// Scalar code from:
+// https://medium.com/@syeedmdtalha/getting-started-with-scalar-api-documentation-in-asp-net-core-a-beginners-guide-4d19db387369
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
