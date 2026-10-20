@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="JewelryInventory.Api/JewelryInventory.Api.csproj" />
+  <Project Path="JewelryInventory.Tests/JewelryInventory.Tests.csproj" />
+</Solution>
