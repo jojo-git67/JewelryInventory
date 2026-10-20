@@ -10,12 +10,16 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<ComponentService>();
+builder.Services.AddProblemDetails();
+
 
 builder.Services.AddDbContext<InventoryDbContext>(options =>
     options.UseSqlite(
         builder.Configuration.GetConnectionString("InventoryDatabase")));
 
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 // Configure the HTTP request pipeline for DEVELOPMENT only
 // Scalar code from:
