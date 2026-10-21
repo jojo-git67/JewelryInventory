@@ -1,7 +1,10 @@
 using JewelryInventory.Api.Data;
 using JewelryInventory.Api.DTOs;
+using JewelryInventory.Api.Exceptions;
 using JewelryInventory.Api.Mappings;
 using JewelryInventory.Api.Models;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
 namespace JewelryInventory.Api.Services;
@@ -42,6 +45,17 @@ public class ComponentService
 
     public async Task<ComponentDto> CreateComponentAsync(CreateComponentRequest request)
     {
+        if (request.Barcode is not null)
+        {
+            var barcodeExists = await _context.Components
+                .AnyAsync(c => c.Barcode == request.Barcode);
+            
+            if (barcodeExists)
+            {
+                throw new DuplicateBarcodeException(request.Barcode);
+            }
+        }
+        
         var component = new Component
         {
             Name = request.Name,
@@ -78,10 +92,62 @@ public class ComponentService
 
         _context.ComponentInventoryMovements.Add(movement);
         
-        await _context.SaveChangesAsync();
+        await SaveChangesWithBarcodeValidationAsync(request.Barcode);
 
         return await GetComponentById(component.Id) 
                ?? throw new InvalidOperationException(
                    "The newly created component could not be retrieved");
+    }
+
+    public async Task<ComponentDto?> UpdateComponentAsync(
+        int id,
+        UpdateComponentRequest request)
+    {
+        var component = await _context.Components
+            .SingleOrDefaultAsync(c => c.Id == id);
+        
+        if (component is null)
+        {
+            return null;
+        }
+        
+        if (request.Barcode is not null)
+        {
+            var barcodeExists = await _context.Components
+                .AnyAsync(c => c.Barcode == request.Barcode &&  c.Id != id);
+
+            if (barcodeExists)
+            {
+                throw new DuplicateBarcodeException(request.Barcode);
+            }
+        }
+        
+        component.Name = request.Name;
+        component.Color = request.Color;
+        component.Category = request.Category;
+        component.UnitOfMeasurement = request.UnitOfMeasurement;
+        component.UnitCost = request.UnitCost;
+        component.LowStockThreshold = request.LowStockThreshold;
+        component.StorageLocation = request.StorageLocation;
+        component.Barcode = request.Barcode;
+
+        await SaveChangesWithBarcodeValidationAsync(request.Barcode);
+
+        return await GetComponentById(component.Id);
+    }
+    
+    private async Task SaveChangesWithBarcodeValidationAsync(string? barcode)
+    {
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex)
+            when (barcode is not null
+                  && ex.InnerException is SqliteException sqliteEx
+                  && sqliteEx.SqliteExtendedErrorCode == 2067)
+        {
+            throw new DuplicateBarcodeException(barcode);
+        }
     }
 }

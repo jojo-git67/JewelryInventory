@@ -1,5 +1,6 @@
 using JewelryInventory.Api.DTOs;
 using JewelryInventory.Api.Services;
+using JewelryInventory.Api.Exceptions;
 using Microsoft.AspNetCore.Mvc;
 
 namespace JewelryInventory.Api.Controllers;
@@ -47,12 +48,42 @@ public class ComponentsController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<ComponentDto>> CreateComponent([FromBody] CreateComponentRequest request)
     {
-        var component = await _componentService.CreateComponentAsync(request);
+        try
+        {
+            var component = await _componentService.CreateComponentAsync(request);
 
-        return CreatedAtAction(
-            nameof(GetComponentById),
-            new { id = component.Id },
-            component
-        );
+            return CreatedAtAction(
+                nameof(GetComponentById),
+                new { id = component.Id },
+                component
+            );
+        }
+        catch (DuplicateBarcodeException e)
+        {
+            return Conflict(e.Message);
+        }
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<ComponentDto>> UpdateComponent(
+        int id,
+        [FromBody] UpdateComponentRequest request)
+    {
+        try
+        {
+            var component = await _componentService.UpdateComponentAsync(id, request);
+
+            if (component is null)
+            {
+                return NotFound();
+            }
+        
+            return Ok(component);
+        }
+        catch (DuplicateBarcodeException e)
+        {
+            return Conflict(e.Message);
+        }
+        
     }
 }
