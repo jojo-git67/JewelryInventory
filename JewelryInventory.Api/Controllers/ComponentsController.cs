@@ -86,4 +86,21 @@ public class ComponentsController : ControllerBase
         }
         
     }
+
+    [HttpPatch("{id:int}/status")]
+    public async Task<ActionResult<ComponentDto>> UpdateStatus(
+        int id,
+        [FromBody] UpdateStatusRequest request)
+    {
+        var component = await _componentService.SetComponentActiveAsync(
+            id, request.IsActive!.Value);
+
+        if (component is null)
+        {
+            return NotFound();
+        } 
+        
+        return Ok(component);
+    }
 }
+    

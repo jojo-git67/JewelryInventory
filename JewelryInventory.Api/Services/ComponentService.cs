@@ -135,6 +135,25 @@ public class ComponentService
 
         return await GetComponentById(component.Id);
     }
+
+    public async Task<ComponentDto?> SetComponentActiveAsync(
+        int id,
+        bool isActive)
+    {
+        var component = await _context.Components
+            .SingleOrDefaultAsync(c => c.Id == id);
+
+        if (component is null)
+        {
+            return null;
+        }
+        
+        component.IsActive = isActive;
+
+        await _context.SaveChangesAsync();
+        
+        return await GetComponentById(component.Id);
+    }
     
     private async Task SaveChangesWithBarcodeValidationAsync(string? barcode)
     {
