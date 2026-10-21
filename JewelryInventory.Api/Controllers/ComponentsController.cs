@@ -35,13 +35,26 @@ public class ComponentsController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ComponentDto>> GetComponentById(int id)
     {
-        var component = await _componentService.GetComponentById(id);
+        var component = await _componentService.GetComponentByIdAsync(id);
 
         if (component is null)
         {
             return NotFound($"Component with ID {id} does not exist");
         }
 
+        return Ok(component);
+    }
+
+    [HttpGet("barcode/{barcode}")]
+    public async Task<ActionResult<ComponentDto>> GetComponentByBarcode(string barcode)
+    {
+        var component = await _componentService.GetComponentByBarcodeAsync(barcode);
+
+        if (component is null)
+        {
+            return NotFound($"Component with Barcode {barcode} does not exist");
+        }
+        
         return Ok(component);
     }
 

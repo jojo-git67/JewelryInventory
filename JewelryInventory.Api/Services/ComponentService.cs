@@ -3,7 +3,6 @@ using JewelryInventory.Api.DTOs;
 using JewelryInventory.Api.Exceptions;
 using JewelryInventory.Api.Mappings;
 using JewelryInventory.Api.Models;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
@@ -34,13 +33,23 @@ public class ComponentService
             .ToListAsync();
     }
 
-    public async Task<ComponentDto?> GetComponentById(int id)
+    public async Task<ComponentDto?> GetComponentByIdAsync(int id)
     {
         return await _context.Components
             .AsNoTracking()
             .Where(c => c.Id == id)
             .Select(ComponentMappings.ToDto)
             .SingleOrDefaultAsync();
+    }
+    
+    public async Task<ComponentDto?> GetComponentByBarcodeAsync(string barcode)
+    {
+        return await _context.Components
+            .AsNoTracking()
+            .Where(c => c.Barcode == barcode)
+            .Select(ComponentMappings.ToDto)
+            .SingleOrDefaultAsync();
+            
     }
 
     public async Task<ComponentDto> CreateComponentAsync(CreateComponentRequest request)
@@ -94,7 +103,7 @@ public class ComponentService
         
         await SaveChangesWithBarcodeValidationAsync(request.Barcode);
 
-        return await GetComponentById(component.Id) 
+        return await GetComponentByIdAsync(component.Id) 
                ?? throw new InvalidOperationException(
                    "The newly created component could not be retrieved");
     }
@@ -133,7 +142,7 @@ public class ComponentService
 
         await SaveChangesWithBarcodeValidationAsync(request.Barcode);
 
-        return await GetComponentById(component.Id);
+        return await GetComponentByIdAsync(component.Id);
     }
 
     public async Task<ComponentDto?> SetComponentActiveAsync(
@@ -152,7 +161,7 @@ public class ComponentService
 
         await _context.SaveChangesAsync();
         
-        return await GetComponentById(component.Id);
+        return await GetComponentByIdAsync(component.Id);
     }
     
     private async Task SaveChangesWithBarcodeValidationAsync(string? barcode)
