@@ -33,6 +33,21 @@ public class ManualAdjustmentService
             throw new ArgumentException("Reason cannot be empty.");
         }
         
+        var reason = request.Reason.Trim();
+        
+        if (componentId <= 0)
+        {
+            throw new ArgumentException("Component ID must be greater than zero.");
+        }
+
+        var componentExists = await _context.Components
+            .AnyAsync(c => c.Id == componentId);
+
+        if (!componentExists)
+        {
+            return null;
+        }
+        
         var semaphore = _inventoryLockService.GetComponentLock(componentId);
         
         await semaphore.WaitAsync();
@@ -62,7 +77,7 @@ public class ManualAdjustmentService
             {
                 Component = component,
                 QuantityChange = request.QuantityChange,
-                Reason = request.Reason,
+                Reason = reason,
                 CreatedAt = now
 
             };
@@ -85,7 +100,7 @@ public class ManualAdjustmentService
                 Id = adjustment.Id,
                 ComponentId = adjustment.ComponentId,
                 QuantityChange = adjustment.QuantityChange,
-                Reason = adjustment.Reason,
+                Reason = reason,
                 CreatedAt = adjustment.CreatedAt,
             };
 
