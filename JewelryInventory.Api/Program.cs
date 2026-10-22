@@ -12,6 +12,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddScoped<ComponentService>();
 builder.Services.AddScoped<ManualAdjustmentService>();
 builder.Services.AddSingleton<InventoryLockService>();
+builder.Services.AddScoped<ComponentInventoryMovementService>();
 builder.Services.AddProblemDetails();
 
 
