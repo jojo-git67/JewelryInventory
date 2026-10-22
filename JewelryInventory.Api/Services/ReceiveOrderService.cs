@@ -38,15 +38,14 @@ public class ReceiveOrderService
 
         foreach (var row in request.Rows)
         {
+            if (row is null)
+                throw new ArgumentException("Receiving order rows cannot be null.");
+
             if (row.QuantityReceived <= 0)
-            {
                 throw new ArgumentException("Quantity must be greater than zero");
-            }
 
             if (row.UnitPurchasePrice < 0)
-            {
                 throw new ArgumentException("Unit price cannot be negative");
-            }
         }
             
         var duplicateComponentIds = request.Rows
