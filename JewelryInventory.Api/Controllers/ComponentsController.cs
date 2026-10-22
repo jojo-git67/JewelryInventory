@@ -71,6 +71,10 @@ public class ComponentsController : ControllerBase
                 component
             );
         }
+        catch (ArgumentException e)
+        {
+            return BadRequest(e.Message);
+        }
         catch (DuplicateBarcodeException e)
         {
             return Conflict(e.Message);
@@ -90,8 +94,12 @@ public class ComponentsController : ControllerBase
             {
                 return NotFound();
             }
-        
+
             return Ok(component);
+        }
+        catch (ArgumentException e)
+        {
+            return BadRequest(e.Message);
         }
         catch (DuplicateBarcodeException e)
         {

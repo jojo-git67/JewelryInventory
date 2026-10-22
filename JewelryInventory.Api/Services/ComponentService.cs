@@ -54,27 +54,35 @@ public class ComponentService
 
     public async Task<ComponentDto> CreateComponentAsync(CreateComponentRequest request)
     {
-        if (request.Barcode is not null)
+        var name = string.IsNullOrWhiteSpace(request.Name)
+            ? throw new  ArgumentException("Name cannot be empty")
+            : request.Name.Trim();
+        
+        var barcode = string.IsNullOrWhiteSpace(request.Barcode)
+        ? null 
+        : request.Barcode.Trim();
+        
+        if (barcode is not null)
         {
             var barcodeExists = await _context.Components
-                .AnyAsync(c => c.Barcode == request.Barcode);
+                .AnyAsync(c => c.Barcode == barcode);
             
             if (barcodeExists)
             {
-                throw new DuplicateBarcodeException(request.Barcode);
+                throw new DuplicateBarcodeException(barcode);
             }
         }
-        
+
         var component = new Component
         {
-            Name = request.Name,
+            Name = name,
             Color = request.Color,
             Category = request.Category,
             UnitOfMeasurement = request.UnitOfMeasurement,
             UnitCost = request.UnitCost,
             LowStockThreshold = request.LowStockThreshold,
             StorageLocation = request.StorageLocation,
-            Barcode = request.Barcode,
+            Barcode = barcode,
             IsActive = true
             
         };
@@ -101,7 +109,7 @@ public class ComponentService
 
         _context.ComponentInventoryMovements.Add(movement);
         
-        await SaveChangesWithBarcodeValidationAsync(request.Barcode);
+        await SaveChangesWithBarcodeValidationAsync(barcode);
 
         return await GetComponentByIdAsync(component.Id) 
                ?? throw new InvalidOperationException(
@@ -120,27 +128,35 @@ public class ComponentService
             return null;
         }
         
-        if (request.Barcode is not null)
+        var barcode =  string.IsNullOrWhiteSpace(request.Barcode)
+            ? null
+            : request.Barcode.Trim();
+        
+        if (barcode is not null)
         {
             var barcodeExists = await _context.Components
-                .AnyAsync(c => c.Barcode == request.Barcode &&  c.Id != id);
+                .AnyAsync(c => c.Barcode == barcode &&  c.Id != id);
 
             if (barcodeExists)
             {
-                throw new DuplicateBarcodeException(request.Barcode);
+                throw new DuplicateBarcodeException(barcode);
             }
         }
+
+        var name = string.IsNullOrWhiteSpace(request.Name)
+            ? throw new  ArgumentException("Name cannot be empty")
+            : request.Name.Trim();
         
-        component.Name = request.Name;
+        component.Name = name;
         component.Color = request.Color;
         component.Category = request.Category;
         component.UnitOfMeasurement = request.UnitOfMeasurement;
         component.UnitCost = request.UnitCost;
         component.LowStockThreshold = request.LowStockThreshold;
         component.StorageLocation = request.StorageLocation;
-        component.Barcode = request.Barcode;
+        component.Barcode = barcode;
 
-        await SaveChangesWithBarcodeValidationAsync(request.Barcode);
+        await SaveChangesWithBarcodeValidationAsync(barcode);
 
         return await GetComponentByIdAsync(component.Id);
     }

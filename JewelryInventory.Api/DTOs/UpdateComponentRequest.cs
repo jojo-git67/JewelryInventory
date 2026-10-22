@@ -5,13 +5,13 @@ namespace JewelryInventory.Api.DTOs;
 public class UpdateComponentRequest
 {
     [Required]
-    public String Name { get; set; }
+    public String Name { get; set; } = string.Empty;
 
     public string? Color { get; set; }
     public string? Category { get; set; }
 
     [Required] 
-    public string UnitOfMeasurement { get; set; } = "pcs";
+    public string UnitOfMeasurement { get; set; } = string.Empty;
     
     [Range(0, double.MaxValue)] 
     public decimal UnitCost { get; set; }

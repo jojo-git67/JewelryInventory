@@ -10,7 +10,8 @@ public class CreateComponentRequest
     public string? Color { get; set; }
     public string? Category { get; set; }
 
-    public string UnitOfMeasurement { get; set; } = "pcs";
+    [Required]
+    public string UnitOfMeasurement { get; set; } = string.Empty;
     
     [Range(0, double.MaxValue)] 
     public decimal UnitCost { get; set; }
