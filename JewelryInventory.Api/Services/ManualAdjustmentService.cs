@@ -10,10 +10,12 @@ namespace JewelryInventory.Api.Services;
 public class ManualAdjustmentService
 {
     private readonly InventoryDbContext _context;
+    private readonly InventoryLockService _inventoryLockService;
     
-    public ManualAdjustmentService(InventoryDbContext context)
+    public ManualAdjustmentService(InventoryDbContext context, InventoryLockService inventoryLockService)
     {
         _context = context;
+        _inventoryLockService = inventoryLockService;
     }
 
     public async Task<ManualAdjustmentDto?> CreateManualAdjustmentAsync(
@@ -31,56 +33,67 @@ public class ManualAdjustmentService
             throw new ArgumentException("Reason cannot be empty.");
         }
         
-        var component = await _context.Components
-            .SingleOrDefaultAsync(c => c.Id == componentId);
-
-        if (component is null)
-        {
-            return null;
-        }
-
-        var currentStock = await _context.ComponentInventoryMovements
-            .Where(m => m.ComponentId == componentId)
-            .SumAsync(m => m.QuantityChange);
-
-        if (currentStock + request.QuantityChange < 0)
-        {
-            throw new InsufficientStockException(componentId);
-        }
+        var semaphore = _inventoryLockService.GetComponentLock(componentId);
         
-        var now = DateTime.UtcNow;
-
-        var adjustment = new ManualAdjustment()
-        {
-            Component = component,
-            QuantityChange = request.QuantityChange,
-            Reason = request.Reason,
-            CreatedAt = now
-
-        };
+        await semaphore.WaitAsync();
         
-        var movement = new ComponentInventoryMovement
+        try
         {
-            Component = component,
-            ManualAdjustment = adjustment,
-            QuantityChange = request.QuantityChange,
-            CreatedAt = now
+            var component = await _context.Components
+                .SingleOrDefaultAsync(c => c.Id == componentId);
+
+            if (component is null)
+            {
+                return null;
+            }
+
+            var currentStock = await _context.ComponentInventoryMovements
+                .Where(m => m.ComponentId == componentId)
+                .SumAsync(m => m.QuantityChange);
+
+            if (currentStock + request.QuantityChange < 0)
+            {
+                throw new InsufficientStockException(componentId);
+            }
+        
+            var now = DateTime.UtcNow;
+
+            var adjustment = new ManualAdjustment()
+            {
+                Component = component,
+                QuantityChange = request.QuantityChange,
+                Reason = request.Reason,
+                CreatedAt = now
+
+            };
+        
+            var movement = new ComponentInventoryMovement
+            {
+                Component = component,
+                ManualAdjustment = adjustment,
+                QuantityChange = request.QuantityChange,
+                CreatedAt = now
             
-        };
+            };
         
-        _context.ComponentInventoryMovements.Add(movement);
+            _context.ComponentInventoryMovements.Add(movement);
 
-        await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
 
-        return new ManualAdjustmentDto
+            return new ManualAdjustmentDto
+            {
+                Id = adjustment.Id,
+                ComponentId = adjustment.ComponentId,
+                QuantityChange = adjustment.QuantityChange,
+                Reason = adjustment.Reason,
+                CreatedAt = adjustment.CreatedAt,
+            };
+
+        }
+        finally
         {
-            Id = adjustment.Id,
-            ComponentId = adjustment.ComponentId,
-            QuantityChange = adjustment.QuantityChange,
-            Reason = adjustment.Reason,
-            CreatedAt = adjustment.CreatedAt,
-        };
-
+            semaphore.Release();
+        }
     }
 
     public async Task<ManualAdjustmentDto?> GetManualAdjustmentByIdAsync(
