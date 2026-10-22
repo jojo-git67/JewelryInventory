@@ -13,6 +13,7 @@ builder.Services.AddScoped<ComponentService>();
 builder.Services.AddScoped<ManualAdjustmentService>();
 builder.Services.AddSingleton<InventoryLockService>();
 builder.Services.AddScoped<ComponentInventoryMovementService>();
+builder.Services.AddScoped<ReceiveOrderService>();
 builder.Services.AddProblemDetails();
 
 
