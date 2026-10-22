@@ -10,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<ComponentService>();
+builder.Services.AddScoped<ManualAdjustmentService>();
 builder.Services.AddProblemDetails();
 
 
