@@ -4,7 +4,7 @@ using JewelryInventory.Api.Models;
 
 namespace JewelryInventory.Api.Mappings;
 
-public class ReceiveOrderMappings
+public static class ReceiveOrderMappings
 {
     public static readonly Expression<Func<ReceiveOrder, ReceiveOrderDto>> ToDto =
         order => new ReceiveOrderDto

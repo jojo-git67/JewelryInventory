@@ -4,7 +4,7 @@ using JewelryInventory.Api.Models;
 
 namespace JewelryInventory.Api.Mappings;
 
-public class ComponentInventoryMovementMappings
+public static class ComponentInventoryMovementMappings
 {
     public static readonly Expression<Func<ComponentInventoryMovement,
         ComponentInventoryMovementDto>> ToDto = m => new ComponentInventoryMovementDto
