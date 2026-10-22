@@ -1,6 +1,5 @@
 using JewelryInventory.Api.Models;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace JewelryInventory.Api.Data;
 
@@ -20,23 +19,6 @@ public class InventoryDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-        
-        var utcConverter = new ValueConverter<DateTime, DateTime>(
-            value => value,
-            value => DateTime.SpecifyKind(value, DateTimeKind.Utc)
-        );
-        
-        modelBuilder.Entity<ReceiveOrder>()
-            .Property(o => o.CreatedAt)
-            .HasConversion(utcConverter);
-
-        modelBuilder.Entity<ManualAdjustment>()
-            .Property(a => a.CreatedAt)
-            .HasConversion(utcConverter);
-
-        modelBuilder.Entity<ComponentInventoryMovement>()
-            .Property(m => m.CreatedAt)
-            .HasConversion(utcConverter);
         
         modelBuilder.Entity<ComponentInventoryMovement>()
             .HasOne(m => m.Component)
@@ -86,5 +68,10 @@ public class InventoryDbContext : DbContext
         modelBuilder.Entity<Component>()
             .HasIndex(c => c.Barcode)
             .IsUnique();
+    }
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Properties<DateTime>()
+            .HaveConversion<UtcDateTimeConverter>();
     }
 }
