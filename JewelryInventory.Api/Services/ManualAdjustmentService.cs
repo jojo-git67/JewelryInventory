@@ -1,6 +1,7 @@
 using JewelryInventory.Api.Data;
 using JewelryInventory.Api.DTOs;
 using JewelryInventory.Api.Exceptions;
+using JewelryInventory.Api.Mappings;
 using JewelryInventory.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -80,5 +81,16 @@ public class ManualAdjustmentService
             CreatedAt = adjustment.CreatedAt,
         };
 
+    }
+
+    public async Task<ManualAdjustmentDto?> GetManualAdjustmentByIdAsync(
+        int componentId,
+        int adjustmentId)
+    {
+        return await _context.ManualAdjustments
+            .AsNoTracking()
+            .Where(m => m.Id == adjustmentId && m.ComponentId == componentId)
+            .Select(ManualAdjustmentMappings.ToDto)
+            .SingleOrDefaultAsync();
     }
 }

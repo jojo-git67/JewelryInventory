@@ -16,6 +16,22 @@ public class ManualAdjustmentsController : ControllerBase
         _manualAdjustmentService = manualAdjustmentService;
     }
 
+    [HttpGet("{adjustmentId:int}")]
+    public async Task<ActionResult<ManualAdjustmentDto>> GetManualAdjustmentById(
+        int componentId,
+        int adjustmentId)
+    {
+        var adjustment = await _manualAdjustmentService
+            .GetManualAdjustmentByIdAsync(componentId, adjustmentId);
+
+        if (adjustment is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(adjustment);
+    }
+
     [HttpPost]
     public async Task<ActionResult<ManualAdjustmentDto>> CreateAdjustment(
         int componentId,
@@ -33,7 +49,15 @@ public class ManualAdjustmentsController : ControllerBase
                 return NotFound();
             }
         
-            return StatusCode(StatusCodes.Status201Created, adjustment);
+            return CreatedAtAction(
+                nameof(GetManualAdjustmentById),
+                new
+                {
+                    componentId = adjustment.ComponentId,
+                    adjustmentId = adjustment.Id
+                },
+                adjustment
+            );
         }
         catch (InsufficientStockException ex)
         {
