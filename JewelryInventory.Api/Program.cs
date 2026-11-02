@@ -19,9 +19,17 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddDbContext<InventoryDbContext>(options =>
     options.UseSqlite(
-        builder.Configuration.GetConnectionString("InventoryDatabase")));
+        builder.Configuration.GetConnectionString("DefaultConnection")));
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider
+        .GetRequiredService<InventoryDbContext>();
+    
+    await dbContext.Database.MigrateAsync();
+}
 
 app.UseExceptionHandler();
 
