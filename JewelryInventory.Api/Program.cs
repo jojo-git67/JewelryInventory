@@ -1,4 +1,5 @@
 using JewelryInventory.Api.Data;
+using JewelryInventory.Api.Repositories;
 using JewelryInventory.Api.Services;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
@@ -9,11 +10,25 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+
+// Services
 builder.Services.AddScoped<ComponentService>();
 builder.Services.AddScoped<ManualAdjustmentService>();
-builder.Services.AddSingleton<InventoryLockService>();
 builder.Services.AddScoped<ComponentInventoryMovementService>();
 builder.Services.AddScoped<ReceiveOrderService>();
+
+// Repositories
+builder.Services.AddScoped<IComponentRepository, ComponentRepository>();
+builder.Services.AddScoped<IComponentInventoryMovementRepository, ComponentInventoryMovementRepository>();
+builder.Services.AddScoped<IManualAdjustmentRepository, ManualAdjustmentRepository>();
+builder.Services.AddScoped<IReceiveOrderRepository, ReceiveOrderRepository>();
+
+// Unit of work
+builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
+
+// Inventory locking (singleton)
+builder.Services.AddSingleton<InventoryLockService>();
+
 builder.Services.AddProblemDetails();
 
 
