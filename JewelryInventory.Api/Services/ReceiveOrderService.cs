@@ -1,31 +1,35 @@
-using JewelryInventory.Api.Data;
 using JewelryInventory.Api.DTOs;
-using JewelryInventory.Api.Mappings;
 using JewelryInventory.Api.Models;
-using Microsoft.EntityFrameworkCore;
+using JewelryInventory.Api.Repositories;
+
 
 namespace JewelryInventory.Api.Services;
 
 public class ReceiveOrderService
 {
-    private readonly InventoryDbContext _context;
+    private readonly IComponentRepository _componentRepository;
+    private readonly IComponentInventoryMovementRepository _movementRepository;
+    private readonly IReceiveOrderRepository _receiveOrderRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly InventoryLockService _inventoryLockService;
 
     public ReceiveOrderService(
-        InventoryDbContext context,
+        IComponentRepository componentRepository,
+        IComponentInventoryMovementRepository movementRepository,
+        IReceiveOrderRepository receiveOrderRepository,
+        IUnitOfWork unitOfWork,
         InventoryLockService inventoryLockService)
     {
-        _context = context;
+        _componentRepository = componentRepository;
+        _movementRepository = movementRepository;
+        _receiveOrderRepository = receiveOrderRepository;
+        _unitOfWork = unitOfWork;
         _inventoryLockService = inventoryLockService;
     }
 
     public async Task<ReceiveOrderDto?> GetReceiveOrderByIdAsync(int orderId)
     {
-        return await _context.ReceiveOrders
-            .AsNoTracking()
-            .Where(o => o.Id == orderId)
-            .Select(ReceiveOrderMappings.ToDto)
-            .SingleOrDefaultAsync();
+        return await _receiveOrderRepository.GetReceiveOrderDtoByIdAsync(orderId);
     }
 
     public async Task<ReceiveOrderDto> CreateReceiveOrderAsync(
@@ -35,6 +39,8 @@ public class ReceiveOrderService
         {
             throw new ArgumentException("A receiving order must contain at least one row");
         }
+
+        var componentIds = new HashSet<int>();
 
         foreach (var row in request.Rows)
         {
@@ -46,24 +52,12 @@ public class ReceiveOrderService
 
             if (row.UnitPurchasePrice < 0)
                 throw new ArgumentException("Unit price cannot be negative");
-        }
             
-        var duplicateComponentIds = request.Rows
-            .GroupBy(r => r.ComponentId)
-            .Where(g => g.Count() > 1)
-            .Select(g => g.Key)
-            .ToList();
-
-        if (duplicateComponentIds.Count > 0)
-        {
-            throw new ArgumentException("A component cannot appear more than once in a receiving order.");
+            if (!componentIds.Add(row.ComponentId))
+            {
+                throw new ArgumentException("A receiving order cannot contain duplicates");
+            }
         }
-        
-        var componentIds = request.Rows
-            .Select(r => r.ComponentId)
-            .ToList();
-
-        
 
         var acquiredLocks = new List<SemaphoreSlim>();
 
@@ -71,37 +65,31 @@ public class ReceiveOrderService
         {
             foreach (var componentId in componentIds.OrderBy(id => id))
             {
-                var componentLock = _inventoryLockService.GetComponentLock(componentId);
-                
-                await componentLock.WaitAsync();
-                acquiredLocks.Add(componentLock);
-            }
-            
-            var existingComponentIds = await _context.Components
-                .Where(c => componentIds.Contains(c.Id))
-                .Select(c => c.Id)
-                .ToListAsync();
+                var semaphore = _inventoryLockService.GetComponentLock(componentId);
 
-            if (existingComponentIds.Count != componentIds.Count)
-            {
-                throw new ArgumentException(
-                    "One or more components do not exist.");
+                await semaphore.WaitAsync();
+                acquiredLocks.Add(semaphore);
             }
-            
+
+            if (!await _componentRepository.AllComponentsExistAsync(componentIds))
+            {
+                throw new ArgumentException("One or more components doesn't exist");
+            }
+
             var now = DateTime.UtcNow;
 
             var receiveOrder = new ReceiveOrder
             {
-                CreatedAt = now
+                CreatedAt = now,
             };
-        
+
             foreach (var row in request.Rows)
             {
                 var receiveOrderRow = new ReceiveOrderRow
                 {
                     ComponentId = row.ComponentId,
                     QuantityReceived = row.QuantityReceived,
-                    UnitPurchasePrice = row.UnitPurchasePrice
+                    UnitPurchasePrice = row.UnitPurchasePrice,
                 };
 
                 var movement = new ComponentInventoryMovement
@@ -109,28 +97,29 @@ public class ReceiveOrderService
                     ComponentId = row.ComponentId,
                     ReceiveOrderRow = receiveOrderRow,
                     QuantityChange = row.QuantityReceived,
-                    CreatedAt = now
+                    CreatedAt = now,
                 };
 
                 receiveOrder.ReceiveOrderRows.Add(receiveOrderRow);
 
-                _context.ComponentInventoryMovements.Add(movement);
+                _movementRepository.Add(movement);
             }
-        
-            _context.ReceiveOrders.Add(receiveOrder);
 
-            await _context.SaveChangesAsync();
-        
-            return (await GetReceiveOrderByIdAsync(receiveOrder.Id))!;
+            _receiveOrderRepository.Add(receiveOrder);
+
+            await _unitOfWork.SaveChangesAsync();
+
+            return await _receiveOrderRepository
+                       .GetReceiveOrderDtoByIdAsync(receiveOrder.Id)
+                   ?? throw new InvalidOperationException(
+                       "The receiving order could not be retrieved after saving");
         }
         finally
         {
-            foreach (var componentLock in acquiredLocks)
+            foreach (var semaphore in acquiredLocks)
             {
-                componentLock.Release();
+                semaphore.Release();
             }
         }
-        
-        
     }
 }
