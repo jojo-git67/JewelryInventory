@@ -1,56 +1,41 @@
-using JewelryInventory.Api.Data;
 using JewelryInventory.Api.DTOs;
-using JewelryInventory.Api.Mappings;
-using Microsoft.EntityFrameworkCore;
+using JewelryInventory.Api.Repositories;
 
 namespace JewelryInventory.Api.Services;
 
 public class ComponentInventoryMovementService
 {
-    private readonly  InventoryDbContext _context;
-    
-    public  ComponentInventoryMovementService(InventoryDbContext context)
+    private readonly IComponentRepository _componentRepository;
+    private readonly IComponentInventoryMovementRepository _movementRepository;
+
+    public ComponentInventoryMovementService(
+        IComponentRepository componentRepository,
+        IComponentInventoryMovementRepository movementRepository)
     {
-        _context = context;
+        _componentRepository = componentRepository;
+        _movementRepository = movementRepository;
     }
 
     public async Task<List<ComponentInventoryMovementDto>?> GetComponentInventoryMovementsAsync(
         int componentId,
         string? source = null)
     {
-        var componentExists = await _context.Components
-            .AnyAsync(c => c.Id == componentId);
-
-        if (!componentExists)
+        if (!await _componentRepository.ComponentExistsAsync(componentId))
         {
             return null;
         }
 
-        var query = _context.ComponentInventoryMovements
-            .AsNoTracking()
-            .Where(m => m.ComponentId == componentId);
-
         if (!string.IsNullOrWhiteSpace(source))
         {
-            switch (source.ToLowerInvariant())
+            var normalizedSource = source.ToLowerInvariant();
+
+            if (normalizedSource != "manualadjustment" &&
+                normalizedSource != "receiveorder")
             {
-                case "manualadjustment":
-                    query = query.Where(m => m.ManualAdjustmentId != null);
-                    break;
-
-                case "receiveorder":
-                    query = query.Where(m => m.ReceiveOrderRowId != null);
-                    break;
-
-                default:
-                    throw new ArgumentException("Invalid movement source.");
-            }
+                throw new ArgumentException("Invalid movement source");
+            }    
         }
-
-        return await query
-            .OrderByDescending(m => m.CreatedAt)
-            .ThenByDescending(m => m.Id)
-            .Select(ComponentInventoryMovementMappings.ToDto)
-            .ToListAsync();
+        
+        return await _movementRepository.GetComponentInventoryMovementsAsync(componentId, source);
     }
 }

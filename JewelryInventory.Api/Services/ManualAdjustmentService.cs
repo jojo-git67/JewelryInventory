@@ -1,20 +1,29 @@
-using JewelryInventory.Api.Data;
 using JewelryInventory.Api.DTOs;
 using JewelryInventory.Api.Exceptions;
-using JewelryInventory.Api.Mappings;
 using JewelryInventory.Api.Models;
-using Microsoft.EntityFrameworkCore;
+using JewelryInventory.Api.Repositories;
 
 namespace JewelryInventory.Api.Services;
 
 public class ManualAdjustmentService
 {
-    private readonly InventoryDbContext _context;
+    private readonly IComponentRepository _componentRepository;
+    private readonly IComponentInventoryMovementRepository _movementRepository;
+    private readonly IManualAdjustmentRepository _manualAdjustmentRepository;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly InventoryLockService _inventoryLockService;
     
-    public ManualAdjustmentService(InventoryDbContext context, InventoryLockService inventoryLockService)
+    public ManualAdjustmentService(
+        IComponentRepository componentRepository,
+        IComponentInventoryMovementRepository movementRepository,
+        IManualAdjustmentRepository manualAdjustmentRepository,
+        IUnitOfWork unitOfWork,
+        InventoryLockService inventoryLockService)
     {
-        _context = context;
+        _componentRepository = componentRepository;
+        _movementRepository = movementRepository;
+        _manualAdjustmentRepository = manualAdjustmentRepository;
+        _unitOfWork = unitOfWork;
         _inventoryLockService = inventoryLockService;
     }
 
@@ -23,87 +32,77 @@ public class ManualAdjustmentService
         CreateManualAdjustmentRequest request
         )
     {
-        if (request.QuantityChange == 0)
-        {
-            throw new ArgumentException("Quantity change cannot be zero.");
-        }
-
-        if (string.IsNullOrWhiteSpace(request.Reason))
-        {
-            throw new ArgumentException("Reason cannot be empty.");
-        }
-        
-        var reason = request.Reason.Trim();
-        
         if (componentId <= 0)
         {
-            throw new ArgumentException("Component ID must be greater than zero.");
+            throw new ArgumentException("Invalid component ID");
         }
 
-        var componentExists = await _context.Components
-            .AnyAsync(c => c.Id == componentId);
+        if (request.QuantityChange == 0)
+        {
+            throw new ArgumentException("Quantity change cannot be 0");
+        }
 
-        if (!componentExists)
+        var reason = request.Reason.Trim();
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new ArgumentException("Reason is required");
+        }
+
+        if (!await _componentRepository.ComponentExistsAsync(componentId))
         {
             return null;
         }
-        
+
         var semaphore = _inventoryLockService.GetComponentLock(componentId);
-        
         await semaphore.WaitAsync();
-        
+
         try
         {
-            var component = await _context.Components
-                .SingleOrDefaultAsync(c => c.Id == componentId);
+            var component = await _componentRepository.GetEntityByIdAsync(componentId);
 
             if (component is null)
             {
                 return null;
             }
 
-            var currentStock = await _context.ComponentInventoryMovements
-                .Where(m => m.ComponentId == componentId)
-                .SumAsync(m => m.QuantityChange);
+            var currentStock = await _movementRepository.GetCurrentStockAsync(componentId);
 
             if (currentStock + request.QuantityChange < 0)
             {
                 throw new InsufficientStockException(componentId);
             }
-        
+
             var now = DateTime.UtcNow;
 
-            var adjustment = new ManualAdjustment()
+            var adjustment = new ManualAdjustment
             {
                 Component = component,
                 QuantityChange = request.QuantityChange,
                 Reason = reason,
-                CreatedAt = now
-
+                CreatedAt = now,
             };
-        
+
             var movement = new ComponentInventoryMovement
             {
                 Component = component,
                 ManualAdjustment = adjustment,
                 QuantityChange = request.QuantityChange,
-                CreatedAt = now
-            
+                CreatedAt = now,
             };
-        
-            _context.ComponentInventoryMovements.Add(movement);
 
-            await _context.SaveChangesAsync();
+            _movementRepository.Add(movement);
+
+            await _unitOfWork.SaveChangesAsync();
 
             return new ManualAdjustmentDto
             {
                 Id = adjustment.Id,
                 ComponentId = adjustment.ComponentId,
                 QuantityChange = adjustment.QuantityChange,
-                Reason = reason,
+                Reason = adjustment.Reason,
                 CreatedAt = adjustment.CreatedAt,
             };
-
         }
         finally
         {
@@ -115,10 +114,7 @@ public class ManualAdjustmentService
         int componentId,
         int adjustmentId)
     {
-        return await _context.ManualAdjustments
-            .AsNoTracking()
-            .Where(m => m.Id == adjustmentId && m.ComponentId == componentId)
-            .Select(ManualAdjustmentMappings.ToDto)
-            .SingleOrDefaultAsync();
+        return await _manualAdjustmentRepository
+            .GetManualAdjustmentDtoByIdAsync(componentId, adjustmentId);
     }
 }
