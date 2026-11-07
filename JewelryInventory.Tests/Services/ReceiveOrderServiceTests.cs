@@ -1,4 +1,5 @@
 using JewelryInventory.Api.DTOs;
+using JewelryInventory.Api.Models;
 using JewelryInventory.Api.Repositories;
 using JewelryInventory.Api.Services;
 using NSubstitute;
@@ -78,8 +79,7 @@ public class ReceiveOrderServiceTests
         await _unitOfWork.DidNotReceive().SaveChangesAsync();
     }
 
-    // TODO: Finish unit test
-    /*[Fact]
+    [Fact]
     public async Task CreateReceiveOrderAsync_ValidRequest_CreatesComponentInventoryMovements()
     {
         // Arrange
@@ -90,12 +90,27 @@ public class ReceiveOrderServiceTests
         request.Rows.Add(
             new CreateReceiveOrderRowRequest { ComponentId = 2, QuantityReceived = 10, UnitPurchasePrice = 2 });
 
-        foreach (var row in request.Rows)
-        {
-            _componentRepository.ComponentExistsAsync(row.ComponentId).Returns(true);
-        }
+        _componentRepository.AllComponentsExistAsync(Arg.Any<IEnumerable<int>>())
+            .Returns(true);
         
+        // Simulate ReceiveOrderService return statement
+        _receiveOrderRepository
+            .GetReceiveOrderDtoByIdAsync(Arg.Any<int>())
+            .Returns(new ReceiveOrderDto());
+
         // Act
+        var receiveOrder = await _service.CreateReceiveOrderAsync(request);
         
-    }*/
+        // Assert
+        Assert.NotNull(receiveOrder);
+        
+        _movementRepository.Received(2)
+            .Add(Arg.Any<ComponentInventoryMovement>());
+        
+        _receiveOrderRepository.Received(1)
+            .Add(Arg.Any<ReceiveOrder>());
+
+        await _unitOfWork.Received(1).SaveChangesAsync();
+
+    }
 }

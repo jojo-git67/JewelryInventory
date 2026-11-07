@@ -137,4 +137,42 @@ public class ManualAdjustmentServiceTests
         
         await _unitOfWork.Received(1).SaveChangesAsync();
     }
+
+    [Fact]
+    public async Task CreateManualAdjustmentAsync_AdjustmentResultsInZeroStock_Succeeds()
+    {
+        // Arrange
+        int componentId = 1;
+
+        var request = new CreateManualAdjustmentRequest
+        {
+            Reason = "Removed unused component",
+            QuantityChange = -10
+        };
+
+        _componentRepository.ComponentExistsAsync(componentId).Returns(true);
+
+        _componentRepository.GetEntityByIdAsync(componentId)
+            .Returns(
+                new Component
+                {
+                    Id = componentId,
+                    Name = "Test component",
+                });
+
+        _movementRepository.GetCurrentStockAsync(componentId)
+            .Returns(10);
+        
+        // Act
+        var movement = 
+            await _service.CreateManualAdjustmentAsync(componentId, request);
+
+        // Assert
+        Assert.NotNull(movement);
+        
+        _movementRepository.Received(1)
+            .Add(Arg.Any<ComponentInventoryMovement>());
+
+        await _unitOfWork.Received(1).SaveChangesAsync();
+    }
 }
