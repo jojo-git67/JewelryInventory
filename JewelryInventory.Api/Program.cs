@@ -1,6 +1,7 @@
 using JewelryInventory.Api.Data;
 using JewelryInventory.Api.Repositories;
 using JewelryInventory.Api.Services;
+using JewelryInventory.Api.Validation.Components;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 
@@ -16,6 +17,20 @@ builder.Services.AddScoped<ComponentService>();
 builder.Services.AddScoped<ManualAdjustmentService>();
 builder.Services.AddScoped<ComponentInventoryMovementService>();
 builder.Services.AddScoped<ReceiveOrderService>();
+
+builder.Services.AddScoped<IComponentValidationHandler>(sp =>
+{
+    var first = new NameRequiredHandler();
+
+    first
+        .SetNext(new UnitOfMeasurementRequiredHandler())
+        .SetNext(new InitialStockHandler())
+        .SetNext(new UnitCostHandler())
+        .SetNext(new LowStockThresholdHandler())
+        .SetNext(new UniqueBarcodeHandler(sp.GetRequiredService<IComponentRepository>()));
+
+    return first;
+});
 
 // Repositories
 builder.Services.AddScoped<IComponentRepository, ComponentRepository>();

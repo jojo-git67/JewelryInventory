@@ -3,7 +3,10 @@ using JewelryInventory.Api.Exceptions;
 using JewelryInventory.Api.Models;
 using JewelryInventory.Api.Repositories;
 using JewelryInventory.Api.Services;
+using JewelryInventory.Api.Validation.Components;
 using NSubstitute;
+using NSubstitute.Core;
+using NSubstitute.ExceptionExtensions;
 
 namespace JewelryInventory.Tests.Services;
 
@@ -18,6 +21,9 @@ public class ComponentServiceTests
     private readonly IUnitOfWork _unitOfWork =
         Substitute.For<IUnitOfWork>();
 
+    private readonly IComponentValidationHandler _validation =
+        Substitute.For<IComponentValidationHandler>();
+
     private readonly ComponentService _service;
         
 
@@ -26,55 +32,25 @@ public class ComponentServiceTests
         _service = new ComponentService(
             _componentRepository,
             _movementRepository,
-            _unitOfWork);
-    }
-    
-    [Fact]
-    public async Task CreateComponentAsync_NegativeInitialStock_ThrowsArgumentException()
-    {
-        // Arrange
-        var request = new CreateComponentRequest
-        {
-            Name = "Unit Test Name",
-            UnitOfMeasurement = "pcs",
-            InitialStock = -5,
-        };
-        
-        // Act
-        var exception = await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateComponentAsync(request));
-        
-        // Assert
-        Assert.Equal("Initial stock cannot be negative", exception.Message);
-
-        await _unitOfWork.DidNotReceive().SaveChangesAsync();
+            _unitOfWork,
+            _validation);
     }
 
     [Fact]
-    public async Task CreateComponentAsync_DuplicateBarcodeExists_ThrowDuplicateBarcodeException()
+    public async Task CreateComponentAsync_ValidationFails_DoesNotSaveAnything()
     {
-        // Arrange
         var request = new CreateComponentRequest
         {
-            Name = "Unit Test Name",
-            UnitOfMeasurement = "pcs",
-            Barcode = "123456789",
+            Name = "x",
+            UnitOfMeasurement = "pcs"
         };
 
-        _componentRepository.BarcodeExistsAsync(request.Barcode).Returns(true);
+        _validation.HandleAsync(Arg.Any<ComponentValidationContext>())
+            .ThrowsAsync(new ArgumentException("boom"));
 
-        // Act
-        var exception = await Assert.ThrowsAsync<DuplicateBarcodeException>(
-            () => _service.CreateComponentAsync(request));
-
-        // Assert
-        Assert.NotNull(exception);
+        await Assert.ThrowsAsync<ArgumentException>(() => _service.CreateComponentAsync(request));
         
-        _movementRepository.DidNotReceive()
-            .Add(Arg.Any<ComponentInventoryMovement>());
-
-        await _componentRepository.Received(1)
-            .BarcodeExistsAsync(request.Barcode);
-
+        _movementRepository.DidNotReceive().Add(Arg.Any<ComponentInventoryMovement>());
         await _unitOfWork.DidNotReceive().SaveChangesAsync();
     }
 

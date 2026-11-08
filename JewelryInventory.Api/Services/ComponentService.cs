@@ -2,6 +2,8 @@ using JewelryInventory.Api.DTOs;
 using JewelryInventory.Api.Exceptions;
 using JewelryInventory.Api.Models;
 using JewelryInventory.Api.Repositories;
+using JewelryInventory.Api.Validation.Components;
+using SQLitePCL;
 
 namespace JewelryInventory.Api.Services;
 
@@ -10,15 +12,18 @@ public class ComponentService
     private readonly IComponentRepository _componentRepository;
     private readonly IComponentInventoryMovementRepository _movementRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IComponentValidationHandler _validation;
 
     public ComponentService(
         IComponentRepository componentRepository,
         IComponentInventoryMovementRepository movementRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IComponentValidationHandler validation)
     {
         _componentRepository = componentRepository;
         _movementRepository = movementRepository;
         _unitOfWork = unitOfWork;
+        _validation = validation;
     }
 
     public async Task<List<ComponentDto>> GetAllActiveComponentsAsync()
@@ -46,45 +51,19 @@ public class ComponentService
         var barcode = request.Barcode?.Trim();
         var unitOfMeasurement = request.UnitOfMeasurement?.Trim();
 
-        if (string.IsNullOrWhiteSpace(name))
+        await _validation.HandleAsync(new ComponentValidationContext
         {
-            throw new ArgumentException("Component name is required");
-        }
-        
-        if (string.IsNullOrWhiteSpace(unitOfMeasurement))
-        {
-            throw new ArgumentException("Unit of measurement is required");
-        }
-
-        if (string.IsNullOrEmpty(barcode))
-        {
-            barcode = null;
-        }
-
-        if (request.InitialStock < 0)
-        {
-            throw new ArgumentException("Initial stock cannot be negative");
-        }
-
-        if (request.UnitCost < 0)
-        {
-            throw new ArgumentException("Unit cost cannot be negative");
-        }
-
-        if (request.LowStockThreshold < 0)
-        {
-            throw new ArgumentException("Low stock threshold cannot be negative");
-        }
-        
-        if (barcode is not null &&
-            await _componentRepository.BarcodeExistsAsync(barcode))
-        {
-            throw new DuplicateBarcodeException(barcode);
-        }
+            Name = name,
+            UnitOfMeasurement = unitOfMeasurement,  
+            Barcode = barcode,
+            UnitCost = request.UnitCost,
+            LowStockThreshold = request.LowStockThreshold,
+            InitialStock = request.InitialStock
+        });
 
         var component = new Component
         {
-            Name = name,
+            Name = name!,
             Color = request.Color,
             Category = request.Category,
             UnitOfMeasurement = unitOfMeasurement,
