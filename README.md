@@ -66,7 +66,7 @@ The implementation refactors the validation logic in `ComponentService.CreateCom
 
 After evaluating the implementation, the original validation approach was retained in the main branch to avoid unnecessary complexity.
 
-The alternative implementation and its associated unit tests are available in the [chain-of-responsibilty branch](https://github.com/jojo-git67/JewelryInventory/tree/chain-of-responsibilty).
+The alternative implementation and its associated unit tests are available in the [chain-of-responsibilty branch](https://github.com/jojo-git67/JewelryInventory/tree/chain-of-responsibility).
 
 ## Author
 
